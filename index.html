@@ -44,6 +44,7 @@
             border-radius: 8px;
             border: 1px solid #ced4da;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            align-items: center;
         }
         .control-group {
             display: flex;
@@ -51,13 +52,17 @@
             gap: 8px;
             font-size: 14px;
         }
-        input[type="number"] {
-            width: 70px;
+        input[type="number"], select {
+            width: 80px;
             padding: 5px;
             border-radius: 4px;
             border: 1px solid #adb5bd;
             background: #ffffff;
             color: #333;
+        }
+        select {
+            width: auto;
+            min-width: 120px;
         }
         input[type="color"] {
             border: 1px solid #ced4da;
@@ -78,12 +83,15 @@
             font-weight: bold;
             transition: background 0.2s;
         }
-        button.export-btn {
-            background: #28a745;
-        }
-        button.export-btn:hover {
-            background: #1e7e34;
-        }
+        button:hover { background: #0056b3; }
+        
+        button.export-btn { background: #28a745; }
+        button.export-btn:hover { background: #1e7e34; }
+        button.danger-btn { background: #dc3545; }
+        button.danger-btn:hover { background: #c82333; }
+        button.secondary-btn { background: #6c757d; }
+        button.secondary-btn:hover { background: #5a6268; }
+        
         input[type="file"] {
             padding: 8px;
             background: #ffffff;
@@ -141,14 +149,29 @@
             font-weight: bold;
             color: #495057;
         }
-        tr:hover {
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        tbody tr:hover {
             background-color: #f1f3f5;
+        }
+        .selected-row td {
+            background-color: #d1e7dd !important; /* Grøn markering */
+            color: #0f5132;
+            font-weight: bold;
+        }
+        .selected-row:hover td {
+            background-color: #badbcc !important; /* Lidt mørkere ved hover */
         }
         .table-info {
             font-size: 14px;
             margin-bottom: 10px;
             color: #007bff;
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -171,7 +194,27 @@
                 <input type="number" id="svgHeight" value="700">
             </div>
             
-            <!-- Farver -->
+            <!-- Farver og Gradient -->
+            <div class="control-group">
+                <label>Farveakse (Gradient):</label>
+                <select id="colorAxisSelect">
+                    <option value="">-- Ingen --</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Farveskala:</label>
+                <select id="colorScaleSelect">
+                    <option value="interpolateTurbo">Turbo</option>
+                    <option value="interpolateViridis">Viridis</option>
+                    <option value="interpolateInferno">Inferno</option>
+                    <option value="interpolateMagma">Magma</option>
+                    <option value="interpolatePlasma">Plasma</option>
+                    <option value="interpolateWarm">Warm</option>
+                    <option value="interpolateCool">Cool</option>
+                    <option value="interpolateRainbow">Rainbow</option>
+                    <option value="interpolateSpectral">Spectral</option>
+                </select>
+            </div>
             <div class="control-group">
                 <label>Baggrund:</label>
                 <input type="color" id="bgColor" value="#ffffff">
@@ -181,7 +224,7 @@
                 <input type="color" id="textColor" value="#333333">
             </div>
             <div class="control-group">
-                <label>Linjer (aktiv):</label>
+                <label>Standard linjer:</label>
                 <input type="color" id="lineColor" value="#007bff">
             </div>
             <div class="control-group">
@@ -209,14 +252,24 @@
                 <input type="number" id="binsNumInput" value="40" step="5" min="5" max="200">
             </div>
 
+            <button id="toggleAxesMenuBtn" class="secondary-btn">Vis/skjul akser</button>
+            <button id="clearFiltersBtn" class="danger-btn">Ryd filtre</button>
             <button id="exportJpgBtn" class="export-btn">Eksporter som JPG</button>
+        </div>
+        
+        <div id="axesSelector" class="controls" style="display: none; width: 100%; margin-top: 15px;">
+            <div style="width: 100%; font-weight: bold; margin-bottom: 5px;">Vælg viste akser:</div>
+            <div id="axesCheckboxes" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
         </div>
     </div>
     
     <div id="plot-container"></div>
 
     <div class="table-container">
-        <div class="table-info" id="tableInfo">Filtrerede data: Ingen fil indlæst</div>
+        <div class="table-info">
+            <span id="tableInfo">Filtrerede data: Ingen fil indlæst</span>
+            <button id="clearSelectionsBtn" class="secondary-btn" style="display:none;">Ryd valgte rækker</button>
+        </div>
         <table id="dataTable">
             <thead id="dataHead"></thead>
             <tbody id="dataBody"></tbody>
@@ -227,12 +280,15 @@
         let globalData = [];
         let originalDimensions = [];
         let displayDimensions = {};  
+        let activeDimensions = [];
         let currentSelections = {};
+        let selectedDataIds = new Set(); // Holder styr på valgte id'er fra tabellen
+        let brushes = {}; // Gemmer d3 brush referencer
         
         let yScales = {};
         let theHistogramsGroup;
 
-        // DOM Elementer - Style
+        // DOM Elementer
         const widthInput = document.getElementById('svgWidth');
         const heightInput = document.getElementById('svgHeight');
         const bgColorInput = document.getElementById('bgColor');
@@ -243,6 +299,115 @@
         const inactiveLineWidthInput = document.getElementById('inactiveLineWidth');
         const inactiveOpacityInput = document.getElementById('inactiveOpacity');
         const binsNumInput = document.getElementById('binsNumInput');
+        const colorAxisSelect = document.getElementById('colorAxisSelect');
+        const colorScaleSelect = document.getElementById('colorScaleSelect');
+        const clearSelectionsBtn = document.getElementById('clearSelectionsBtn');
+        const toggleAxesMenuBtn = document.getElementById('toggleAxesMenuBtn');
+        const axesSelector = document.getElementById('axesSelector');
+        const axesCheckboxes = document.getElementById('axesCheckboxes');
+
+        function loadSettings() {
+            try {
+                const settings = JSON.parse(localStorage.getItem('pcp_settings'));
+                if (settings) {
+                    if(settings.svgWidth) widthInput.value = settings.svgWidth;
+                    if(settings.svgHeight) heightInput.value = settings.svgHeight;
+                    if(settings.bgColor) bgColorInput.value = settings.bgColor;
+                    if(settings.textColor) textColorInput.value = settings.textColor;
+                    if(settings.lineColor) lineColorInput.value = settings.lineColor;
+                    if(settings.histColor) histColorInput.value = settings.histColor;
+                    if(settings.activeLineWidth) activeLineWidthInput.value = settings.activeLineWidth;
+                    if(settings.inactiveLineWidth) inactiveLineWidthInput.value = settings.inactiveLineWidth;
+                    if(settings.inactiveOpacity) inactiveOpacityInput.value = settings.inactiveOpacity;
+                    if(settings.binsNum) binsNumInput.value = settings.binsNum;
+                    if(settings.colorScale) colorScaleSelect.value = settings.colorScale;
+                }
+            } catch(e) {
+                console.warn("Kunne ikke indlæse indstillinger fra localStorage", e);
+            }
+        }
+
+        function saveSettings() {
+            try {
+                const settings = {
+                    svgWidth: widthInput.value,
+                    svgHeight: heightInput.value,
+                    bgColor: bgColorInput.value,
+                    textColor: textColorInput.value,
+                    lineColor: lineColorInput.value,
+                    histColor: histColorInput.value,
+                    activeLineWidth: activeLineWidthInput.value,
+                    inactiveLineWidth: inactiveLineWidthInput.value,
+                    inactiveOpacity: inactiveOpacityInput.value,
+                    binsNum: binsNumInput.value,
+                    colorScale: colorScaleSelect.value
+                };
+                localStorage.setItem('pcp_settings', JSON.stringify(settings));
+            } catch(e) {
+                console.warn("Kunne ikke gemme indstillinger til localStorage", e);
+            }
+        }
+
+        // Hent gemte indstillinger ved start
+        loadSettings();
+
+        // Funktion til at tilknytte ændringer til gemning
+        function bindSetting(element, eventType, callback) {
+            element.addEventListener(eventType, (e) => {
+                saveSettings();
+                if (callback) callback(e);
+            });
+        }
+
+        bindSetting(widthInput, 'change', renderPlot); 
+        bindSetting(heightInput, 'change', renderPlot);
+        bindSetting(bgColorInput, 'input', updateStylesLive);
+        bindSetting(textColorInput, 'input', updateStylesLive);
+        bindSetting(lineColorInput, 'input', updateStylesLive);
+        bindSetting(histColorInput, 'input', updateStylesLive);
+        bindSetting(activeLineWidthInput, 'input', updateStylesLive);
+        bindSetting(inactiveLineWidthInput, 'input', updateStylesLive);
+        bindSetting(inactiveOpacityInput, 'input', updateStylesLive);
+        bindSetting(colorAxisSelect, 'change', updateStylesLive);
+        bindSetting(colorScaleSelect, 'change', updateStylesLive);
+        
+        bindSetting(binsNumInput, 'input', () => {
+            if(globalData.length > 0) {
+                updateDataView(globalData.filter(isDataActive));
+            }
+        });
+
+        // Knapper
+        document.getElementById('exportJpgBtn').addEventListener('click', exportToJPG);
+        
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+            currentSelections = {};
+            if (theAxes) {
+                theAxes.selectAll('.brush').each(function(d) {
+                    if (brushes[d]) {
+                        d3.select(this).call(brushes[d].move, null);
+                    }
+                });
+            }
+            fgPath.style("display", null);
+            updateDataView(globalData);
+            updateStylesLive();
+        });
+
+        toggleAxesMenuBtn.addEventListener('click', () => {
+            if (axesSelector.style.display === 'none') {
+                axesSelector.style.display = 'flex';
+            } else {
+                axesSelector.style.display = 'none';
+            }
+        });
+
+        clearSelectionsBtn.addEventListener('click', () => {
+            selectedDataIds.clear();
+            const activeData = globalData.filter(isDataActive);
+            updateTable(activeData); 
+            updateStylesLive();
+        });
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -257,11 +422,11 @@
                 displayDimensions = {};
                 
                 originalDimensions.forEach(dim => {
-                    displayDimensions[dim] = dim; // Standard: vis navnet fra filen
+                    displayDimensions[dim] = dim; // Standard navn
                 });
                 
-                globalData = rawData.map(d => {
-                    let row = {};
+                globalData = rawData.map((d, i) => {
+                    let row = { _id: i }; // Tilføj unikt ID til rækken
                     originalDimensions.forEach(dim => {
                         let val = d[dim].replace(',', '.');
                         row[dim] = parseFloat(val);
@@ -269,32 +434,62 @@
                     return row;
                 }).filter(d => originalDimensions.every(dim => !isNaN(d[dim])));
 
+                activeDimensions = [...originalDimensions];
                 currentSelections = {}; 
+                selectedDataIds.clear();
+                populateColorAxisDropdown();
+                populateAxesSelector();
                 renderPlot();
             };
             reader.readAsText(file);
         });
 
-        // LIVE OPDATERING AF UDSENDENDE (UDEN RE-RENDER)
-        widthInput.addEventListener('change', renderPlot); 
-        heightInput.addEventListener('change', renderPlot);
-        
-        bgColorInput.addEventListener('input', updateStylesLive);
-        textColorInput.addEventListener('input', updateStylesLive);
-        lineColorInput.addEventListener('input', updateStylesLive);
-        histColorInput.addEventListener('input', updateStylesLive);
-        activeLineWidthInput.addEventListener('input', updateStylesLive);
-        inactiveLineWidthInput.addEventListener('input', updateStylesLive);
-        inactiveOpacityInput.addEventListener('input', updateStylesLive);
-        
-        // LIVE OPDATERING AF HISTOGRAM OPLØSNING
-        binsNumInput.addEventListener('input', () => {
-            if(globalData.length > 0) {
-                updateDataView(globalData.filter(isDataActive));
-            }
-        });
+        function populateAxesSelector() {
+            axesCheckboxes.innerHTML = '';
+            originalDimensions.forEach(dim => {
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.cursor = 'pointer';
+                label.style.gap = '5px';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = dim;
+                cb.checked = activeDimensions.includes(dim);
+                
+                cb.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        activeDimensions.push(dim);
+                        // Sorter så de bibeholder den oprindelige rækkefølge
+                        activeDimensions.sort((a, b) => originalDimensions.indexOf(a) - originalDimensions.indexOf(b));
+                    } else {
+                        activeDimensions = activeDimensions.filter(d => d !== dim);
+                        // Fjern evt. brush filter på denne akse, da den skjules
+                        if (currentSelections[dim]) {
+                            delete currentSelections[dim];
+                        }
+                    }
+                    renderPlot();
+                });
+                
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(displayDimensions[dim]));
+                axesCheckboxes.appendChild(label);
+            });
+        }
 
-        document.getElementById('exportJpgBtn').addEventListener('click', exportToJPG);
+        function populateColorAxisDropdown() {
+            const currentVal = colorAxisSelect.value;
+            colorAxisSelect.innerHTML = '<option value="">-- Ingen --</option>';
+            originalDimensions.forEach(dim => {
+                const opt = document.createElement('option');
+                opt.value = dim;
+                opt.innerText = displayDimensions[dim];
+                colorAxisSelect.appendChild(opt);
+            });
+            colorAxisSelect.value = currentVal;
+        }
 
         let svgElement, fgPath, bgPath, theAxes;
 
@@ -306,10 +501,10 @@
             
             theHistogramsGroup.selectAll("*").remove();
 
-            originalDimensions.forEach(dim => {
+            activeDimensions.forEach(dim => {
                 const histogram = d3.histogram()
                     .domain(yScales[dim].domain())
-                    .thresholds(yScales[dim].ticks(binsNum)); // D3 grupperer automatisk baseret på tick-mængden
+                    .thresholds(yScales[dim].ticks(binsNum)); 
                 
                 const bins = histogram(activeData.map(d => d[dim]));
                 const maxCount = d3.max(bins, d => d.length) || 1;
@@ -356,6 +551,7 @@
                 .append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
+            // Beregn Y-skalaer for ALLE dimensioner (selvom de er skjult, for at have dem klar)
             originalDimensions.forEach(d => {
                 yScales[d] = d3.scaleLinear()
                     .domain(d3.extent(globalData, p => p[d]))
@@ -365,9 +561,9 @@
             const x = d3.scalePoint()
                 .range([0, innerWidth])
                 .padding(1)
-                .domain(originalDimensions);
+                .domain(activeDimensions);
 
-            const path = d => d3.line()(originalDimensions.map(p => [x(p), yScales[p](d[p])]));
+            const path = d => d3.line()(activeDimensions.map(p => [x(p), yScales[p](d[p])]));
 
             bgPath = svgElement.append("g")
                 .selectAll("path")
@@ -384,10 +580,11 @@
                 .enter().append("path")
                 .attr("class", "fg-line")
                 .attr("d", path)
-                .style("fill", "none");
+                .style("fill", "none")
+                .style("transition", "stroke-width 0.2s, stroke-opacity 0.2s"); // Giver pæn animation når de vælges
 
             theAxes = svgElement.selectAll(".axis")
-                .data(originalDimensions)
+                .data(activeDimensions)
                 .enter().append("g")
                 .attr("class", "axis")
                 .attr("transform", d => `translate(${x(d)},0)`);
@@ -395,7 +592,6 @@
             theAxes.append("g")
                 .each(function(d) { d3.select(this).call(d3.axisLeft(yScales[d]).ticks(10)); });
                 
-            // INLINE EDITING AF AKSETITLER
             theAxes.append("text")
                 .attr("class", "axis-label")
                 .attr("y", -20)
@@ -441,6 +637,8 @@
                         displayDimensions[d] = newText;
                         textElement.text(newText).style("visibility", "visible").style("fill", textColorInput.value);
                         fo.remove();
+                        populateColorAxisDropdown(); // Opdater dropdown navne
+                        populateAxesSelector(); // Opdater navne i "Vælg Akser" panelet
                         updateTable(globalData.filter(isDataActive));
                     };
 
@@ -467,6 +665,7 @@
 
             updateDataView(activeDataInit);
 
+            brushes = {};
             theAxes.append("g")
                 .attr("class", "brush")
                 .each(function(d) {
@@ -487,7 +686,8 @@
 
                             updateDataView(activeData);
                         });
-                        
+                    
+                    brushes[d] = theBrush;
                     d3.select(this).call(theBrush);
                     
                     if (currentSelections[d]) {
@@ -502,7 +702,7 @@
         }
 
         function isDataActive(p) {
-            return originalDimensions.every(dim => {
+            return activeDimensions.every(dim => {
                 if (!currentSelections[dim]) return true;
                 const ext = currentSelections[dim];
                 return p[dim] >= ext[1] && p[dim] <= ext[0];
@@ -513,6 +713,8 @@
             if(!svgElement) return;
             
             const textColor = textColorInput.value;
+            const defaultLineColor = lineColorInput.value;
+            const cAxis = colorAxisSelect.value;
             
             d3.select("#main-svg").style("background-color", bgColorInput.value);
             
@@ -521,16 +723,39 @@
                 .style("stroke-opacity", inactiveOpacityInput.value)
                 .style("stroke-width", inactiveLineWidthInput.value + "px");
                 
+            // Opsæt farveskala hvis en akse er valgt 
+            let colorScale = null;
+            if (cAxis && yScales[cAxis]) {
+                const domain = d3.extent(globalData, d => d[cAxis]);
+                const interpolatorName = colorScaleSelect.value || "interpolateTurbo";
+                colorScale = d3.scaleSequential(d3[interpolatorName]).domain(domain);
+            }
+
             fgPath
-                .style("stroke", lineColorInput.value)
-                .style("stroke-opacity", 0.3) 
-                .style("stroke-width", activeLineWidthInput.value + "px");
+                .style("stroke", d => {
+                    if (colorScale) return colorScale(d[cAxis]);
+                    return defaultLineColor;
+                })
+                .style("stroke-opacity", d => {
+                    if (selectedDataIds.size === 0) return 0.4; // Standard opacitet
+                    return selectedDataIds.has(d._id) ? 1.0 : 0.05; // Fade ikke-valgte meget ned
+                })
+                .style("stroke-width", d => {
+                    let baseWidth = parseFloat(activeLineWidthInput.value);
+                    if (selectedDataIds.size > 0 && selectedDataIds.has(d._id)) {
+                        return (baseWidth + 1.5) + "px"; // Gør valgte lidt tykkere
+                    }
+                    return baseWidth + "px";
+                });
                 
             theAxes.selectAll("path, line").style("stroke", textColor);
             theAxes.selectAll("text.axis-label").style("fill", textColor);
             theAxes.selectAll(".tick text").style("fill", textColor);
             
             svgElement.selectAll(".hist-bar").style("fill", histColorInput.value);
+            
+            // Toggle ryd-markeringer knap
+            clearSelectionsBtn.style.display = selectedDataIds.size > 0 ? 'inline-block' : 'none';
         }
 
         function updateTable(activeData) {
@@ -550,7 +775,7 @@
             tableInfo.innerText = `Filtrerede data: Viser ${renderLimit} ud af ${activeData.length} aktive paths.`;
 
             const trHead = document.createElement('tr');
-            originalDimensions.forEach(dim => {
+            activeDimensions.forEach(dim => {
                 const th = document.createElement('th');
                 th.innerText = displayDimensions[dim];
                 trHead.appendChild(th);
@@ -558,10 +783,28 @@
             thead.appendChild(trHead);
 
             for (let i = 0; i < renderLimit; i++) {
+                const rowData = activeData[i];
                 const tr = document.createElement('tr');
-                originalDimensions.forEach(dim => {
+                
+                if (selectedDataIds.has(rowData._id)) {
+                    tr.classList.add('selected-row');
+                }
+
+                // Klik på række for at markere den
+                tr.onclick = function() {
+                    if (selectedDataIds.has(rowData._id)) {
+                        selectedDataIds.delete(rowData._id);
+                        this.classList.remove('selected-row');
+                    } else {
+                        selectedDataIds.add(rowData._id);
+                        this.classList.add('selected-row');
+                    }
+                    updateStylesLive();
+                };
+
+                activeDimensions.forEach(dim => {
                     const td = document.createElement('td');
-                    td.innerText = activeData[i][dim];
+                    td.innerText = rowData[dim];
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
