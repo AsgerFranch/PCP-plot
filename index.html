@@ -3,101 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interaktivt PCP Plot med Inline Edit</title>
+    <title>Parallel Coordinates & Følsomhedsanalyse</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+        :root {
+            --ink: #18181b;
+            --muted: #71717a;
+            --hairline: #e4e4e7;
+            --surface: #ffffff;
+            --bg: #f4f4f5;
+            --accent: #2b4c6f;
+            --pos: #2b4c6f;
+            --neg: #b45346;
+        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-            color: #333333;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--ink);
             margin: 0;
-            padding: 20px;
+            padding: 28px 24px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            font-variant-numeric: tabular-nums;
+            -webkit-font-smoothing: antialiased;
         }
         .header-container {
             display: flex;
             flex-direction: column;
             width: 100%;
             max-width: 1400px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
         .top-bar {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #e9ecef;
+            align-items: baseline;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--ink);
             padding-bottom: 10px;
         }
         .top-bar h2 {
             margin: 0;
-            color: #212529;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--ink);
         }
         .controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #ced4da;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            gap: 14px 18px;
+            background: var(--surface);
+            padding: 12px 16px;
+            border-radius: 4px;
+            border: 1px solid var(--hairline);
             align-items: center;
         }
         .control-group {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 14px;
+            gap: 7px;
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 500;
         }
         input[type="number"], select {
-            width: 80px;
-            padding: 5px;
-            border-radius: 4px;
-            border: 1px solid #adb5bd;
-            background: #ffffff;
-            color: #333;
+            width: 68px;
+            padding: 4px 6px;
+            border-radius: 3px;
+            border: 1px solid #d4d4d8;
+            background: var(--surface);
+            color: var(--ink);
+            font-size: 12px;
+            font-family: inherit;
         }
         select {
             width: auto;
-            min-width: 120px;
+            min-width: 115px;
         }
         input[type="color"] {
-            border: 1px solid #ced4da;
-            width: 30px;
-            height: 30px;
-            border-radius: 4px;
+            border: 1px solid #d4d4d8;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
             cursor: pointer;
             background: transparent;
             padding: 0;
         }
         button {
-            padding: 8px 15px;
-            background: #007bff;
+            padding: 6px 12px;
+            background: var(--ink);
             color: #fff;
-            border: none;
-            border-radius: 5px;
+            border: 1px solid var(--ink);
+            border-radius: 3px;
             cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: opacity 0.15s;
+            font-family: inherit;
         }
-        button:hover { background: #0056b3; }
-        
-        button.export-btn { background: #28a745; }
-        button.export-btn:hover { background: #1e7e34; }
-        button.danger-btn { background: #dc3545; }
-        button.danger-btn:hover { background: #c82333; }
-        button.secondary-btn { background: #6c757d; }
-        button.secondary-btn:hover { background: #5a6268; }
+        button:hover { opacity: 0.85; }
+        button.export-btn { background: var(--accent); border-color: var(--accent); }
+        button.danger-btn { background: transparent; color: var(--neg); border-color: #e4c6c1; }
+        button.danger-btn:hover { background: #fdf3f2; }
+        button.secondary-btn { background: transparent; color: var(--ink); border-color: #d4d4d8; }
+        button.secondary-btn:hover { background: #f4f4f5; }
         
         input[type="file"] {
-            padding: 8px;
-            background: #ffffff;
-            border: 1px solid #ced4da;
-            color: #333;
-            border-radius: 5px;
+            padding: 5px 8px;
+            background: var(--surface);
+            border: 1px solid #d4d4d8;
+            color: var(--ink);
+            border-radius: 3px;
+            font-size: 12px;
             cursor: pointer;
         }
         #plot-container {
@@ -106,72 +127,107 @@
             margin-bottom: 20px;
         }
         svg {
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 4px;
             display: block;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--hairline);
+            background: #ffffff;
         }
         .brush .selection {
-            fill: #007bff;
-            fill-opacity: 0.2;
-            stroke: #007bff;
+            fill: var(--accent);
+            fill-opacity: 0.14;
+            stroke: var(--accent);
             stroke-width: 1px;
         }
-        .table-container {
+        .table-container, .sens-container {
             width: 100%;
             max-width: 1400px;
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #ced4da;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--surface);
+            padding: 20px 24px;
+            border-radius: 4px;
+            border: 1px solid var(--hairline);
             overflow-x: auto;
+            box-sizing: border-box;
+        }
+        .table-container {
             max-height: 400px;
             overflow-y: auto;
         }
+        .sens-container {
+            margin-bottom: 20px;
+            display: none;
+        }
+        .sens-grid {
+            display: grid;
+            grid-template-columns: 1.45fr 1fr;
+            gap: 28px;
+            align-items: start;
+        }
+        @media (max-width: 1080px) {
+            .sens-grid { grid-template-columns: 1fr; }
+        }
+        .sens-grid svg {
+            border: 1px solid var(--hairline);
+            border-radius: 3px;
+            max-width: 100%;
+            height: auto;
+        }
+        .badge-pos, .badge-neg {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 2px;
+            font-weight: 500;
+            font-size: 11px;
+            letter-spacing: 0.02em;
+        }
+        .badge-pos { background: #eef3f7; color: var(--pos); }
+        .badge-neg { background: #faeeec; color: var(--neg); }
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
             text-align: right;
-            color: #333;
+            color: var(--ink);
         }
         th, td {
-            padding: 8px;
-            border-bottom: 1px solid #e9ecef;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--hairline);
         }
         th {
-            background: #f8f9fa;
+            background: var(--surface);
             position: sticky;
             top: 0;
             z-index: 10;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: bold;
-            color: #495057;
+            border-bottom: 1.5px solid var(--ink);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
         }
         tbody tr {
             cursor: pointer;
-            transition: background-color 0.15s ease-in-out;
+            transition: background-color 0.12s;
         }
         tbody tr:hover {
-            background-color: #f1f3f5;
+            background-color: #f8f8f9;
         }
         .selected-row td {
-            background-color: #d1e7dd !important; /* Grøn markering */
-            color: #0f5132;
-            font-weight: bold;
-        }
-        .selected-row:hover td {
-            background-color: #badbcc !important; /* Lidt mørkere ved hover */
+            background-color: #eef3f7 !important;
+            color: var(--pos);
+            font-weight: 600;
         }
         .table-info {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #007bff;
-            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 14px;
+            color: var(--ink);
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
     </style>
 </head>
@@ -184,86 +240,114 @@
         </div>
         
         <div class="controls">
-            <!-- Dimensioner -->
             <div class="control-group">
-                <label>Bredde:</label>
+                <label>Bredde</label>
                 <input type="number" id="svgWidth" value="1400">
             </div>
             <div class="control-group">
-                <label>Højde:</label>
-                <input type="number" id="svgHeight" value="700">
+                <label>Højde</label>
+                <input type="number" id="svgHeight" value="620">
             </div>
             
-            <!-- Farver og Gradient -->
             <div class="control-group">
-                <label>Farveakse (Gradient):</label>
+                <label>Farveakse</label>
                 <select id="colorAxisSelect">
                     <option value="">-- Ingen --</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Farveskala:</label>
+                <label>Skala</label>
                 <select id="colorScaleSelect">
-                    <option value="interpolateTurbo">Turbo</option>
                     <option value="interpolateViridis">Viridis</option>
+                    <option value="interpolateTurbo">Turbo</option>
                     <option value="interpolateInferno">Inferno</option>
                     <option value="interpolateMagma">Magma</option>
                     <option value="interpolatePlasma">Plasma</option>
                     <option value="interpolateWarm">Warm</option>
                     <option value="interpolateCool">Cool</option>
-                    <option value="interpolateRainbow">Rainbow</option>
                     <option value="interpolateSpectral">Spectral</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Baggrund:</label>
+                <label>Baggrund</label>
                 <input type="color" id="bgColor" value="#ffffff">
             </div>
             <div class="control-group">
-                <label>Tekst/Akser:</label>
-                <input type="color" id="textColor" value="#333333">
+                <label>Akser</label>
+                <input type="color" id="textColor" value="#18181b">
             </div>
             <div class="control-group">
-                <label>Standard linjer:</label>
-                <input type="color" id="lineColor" value="#007bff">
+                <label>Linjer</label>
+                <input type="color" id="lineColor" value="#2b4c6f">
             </div>
             <div class="control-group">
-                <label>Søjler (fordeling):</label>
-                <input type="color" id="histColor" value="#ff6b6b">
+                <label>Fordeling</label>
+                <input type="color" id="histColor" value="#94a3b8">
             </div>
 
-            <!-- Tykkelser -->
             <div class="control-group">
-                <label>Tykkelse (Aktiv):</label>
-                <input type="number" id="activeLineWidth" value="1.5" step="0.1" min="0.1">
+                <label>Aktiv (px)</label>
+                <input type="number" id="activeLineWidth" value="1.2" step="0.1" min="0.1">
             </div>
             <div class="control-group">
-                <label>Tykkelse (Inaktiv):</label>
-                <input type="number" id="inactiveLineWidth" value="1" step="0.1" min="0">
+                <label>Inaktiv (px)</label>
+                <input type="number" id="inactiveLineWidth" value="0.7" step="0.1" min="0">
             </div>
             <div class="control-group">
-                <label>Opacitet (Inaktiv):</label>
-                <input type="number" id="inactiveOpacity" value="0.05" step="0.01" min="0" max="1">
+                <label>Inaktiv opacitet</label>
+                <input type="number" id="inactiveOpacity" value="0.06" step="0.01" min="0" max="1">
             </div>
             
-            <!-- Søjlediagram (Histogram bins) -->
             <div class="control-group">
-                <label title="Styrer opløsningen (antal søjler) pr. akse">Maks. antal søjler:</label>
-                <input type="number" id="binsNumInput" value="40" step="5" min="5" max="200">
+                <label title="Antal søjler pr. akse">Bins</label>
+                <input type="number" id="binsNumInput" value="35" step="5" min="5" max="200">
             </div>
 
-            <button id="toggleAxesMenuBtn" class="secondary-btn">Vis/skjul akser</button>
+            <button id="toggleAxesMenuBtn" class="secondary-btn">Akser</button>
             <button id="clearFiltersBtn" class="danger-btn">Ryd filtre</button>
-            <button id="exportJpgBtn" class="export-btn">Eksporter som JPG</button>
+            <button id="copyPcpImgBtn" class="secondary-btn" title="Kopiér PCP-graf i høj opløsning til udklipsholder">Kopiér graf (PNG)</button>
+            <button id="exportJpgBtn" class="export-btn">Download JPG</button>
         </div>
         
-        <div id="axesSelector" class="controls" style="display: none; width: 100%; margin-top: 15px;">
-            <div style="width: 100%; font-weight: bold; margin-bottom: 5px;">Vælg viste akser:</div>
-            <div id="axesCheckboxes" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
+        <div id="axesSelector" class="controls" style="display: none; width: 100%; margin-top: 10px; box-sizing: border-box;">
+            <div style="width: 100%; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);">Vælg viste akser</div>
+            <div id="axesCheckboxes" style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px;"></div>
         </div>
     </div>
     
     <div id="plot-container"></div>
+
+    <div id="sensContainer" class="sens-container">
+        <div class="table-info">
+            <div class="control-group" style="color: var(--ink); font-size: 13px; font-weight: 600;">
+                <span>Følsomhedsanalyse — Effekt på output:</span>
+                <select id="sensOutputSelect"></select>
+            </div>
+            <div class="control-group">
+                <button id="copySensImgBtn" class="secondary-btn" title="Kopiér figur i høj opløsning til rapport">Kopiér figur (PNG)</button>
+                <button id="exportSensJpgBtn" class="export-btn">Download JPG</button>
+                <button id="copySensTableBtn" class="secondary-btn">Kopiér tabel</button>
+            </div>
+        </div>
+        <div class="sens-grid">
+            <div id="sens-plot-container"></div>
+            <div>
+                <table id="sensTable">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Parameter</th>
+                            <th title="Pearson korrelationskoefficient (-1 til +1)">r</th>
+                            <th title="Andel af samlet lineær følsomhed">Vægt</th>
+                            <th title="Forklaringsgrad alene (r²)">r²</th>
+                            <th title="Gennemsnitlig ændring i output når parameteren går fra 10%- til 90%-fraktil">Δ (P10→P90)</th>
+                            <th style="text-align:center;">Effekt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sensBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <div class="table-container">
         <div class="table-info">
@@ -282,13 +366,12 @@
         let displayDimensions = {};  
         let activeDimensions = [];
         let currentSelections = {};
-        let selectedDataIds = new Set(); // Holder styr på valgte id'er fra tabellen
-        let brushes = {}; // Gemmer d3 brush referencer
+        let selectedDataIds = new Set();
+        let brushes = {};
         
         let yScales = {};
         let theHistogramsGroup;
 
-        // DOM Elementer
         const widthInput = document.getElementById('svgWidth');
         const heightInput = document.getElementById('svgHeight');
         const bgColorInput = document.getElementById('bgColor');
@@ -305,10 +388,12 @@
         const toggleAxesMenuBtn = document.getElementById('toggleAxesMenuBtn');
         const axesSelector = document.getElementById('axesSelector');
         const axesCheckboxes = document.getElementById('axesCheckboxes');
+        const sensContainer = document.getElementById('sensContainer');
+        const sensOutputSelect = document.getElementById('sensOutputSelect');
 
         function loadSettings() {
             try {
-                const settings = JSON.parse(localStorage.getItem('pcp_settings'));
+                const settings = JSON.parse(localStorage.getItem('pcp_settings_v2'));
                 if (settings) {
                     if(settings.svgWidth) widthInput.value = settings.svgWidth;
                     if(settings.svgHeight) heightInput.value = settings.svgHeight;
@@ -323,7 +408,7 @@
                     if(settings.colorScale) colorScaleSelect.value = settings.colorScale;
                 }
             } catch(e) {
-                console.warn("Kunne ikke indlæse indstillinger fra localStorage", e);
+                console.warn("Kunne ikke indlæse indstillinger", e);
             }
         }
 
@@ -342,16 +427,14 @@
                     binsNum: binsNumInput.value,
                     colorScale: colorScaleSelect.value
                 };
-                localStorage.setItem('pcp_settings', JSON.stringify(settings));
+                localStorage.setItem('pcp_settings_v2', JSON.stringify(settings));
             } catch(e) {
-                console.warn("Kunne ikke gemme indstillinger til localStorage", e);
+                console.warn("Kunne ikke gemme indstillinger", e);
             }
         }
 
-        // Hent gemte indstillinger ved start
         loadSettings();
 
-        // Funktion til at tilknytte ændringer til gemning
         function bindSetting(element, eventType, callback) {
             element.addEventListener(eventType, (e) => {
                 saveSettings();
@@ -377,8 +460,21 @@
             }
         });
 
-        // Knapper
-        document.getElementById('exportJpgBtn').addEventListener('click', exportToJPG);
+        sensOutputSelect.addEventListener('change', () => {
+            if (globalData.length > 0) renderSensitivity(globalData.filter(isDataActive));
+        });
+
+        document.getElementById('exportJpgBtn').addEventListener('click', () => exportSvgToImage("#main-svg", "PCP_Graf.jpg", bgColorInput.value));
+        document.getElementById('copyPcpImgBtn').addEventListener('click', function() {
+            copySvgToClipboard("#main-svg", this, bgColorInput.value);
+        });
+        document.getElementById('exportSensJpgBtn').addEventListener('click', () => exportSvgToImage("#sens-svg", "Foelsomhedsanalyse.jpg", "#ffffff"));
+        document.getElementById('copySensImgBtn').addEventListener('click', function() {
+            copySvgToClipboard("#sens-svg", this, "#ffffff");
+        });
+        document.getElementById('copySensTableBtn').addEventListener('click', function() {
+            copySensTable(this);
+        });
         
         document.getElementById('clearFiltersBtn').addEventListener('click', () => {
             currentSelections = {};
@@ -395,11 +491,7 @@
         });
 
         toggleAxesMenuBtn.addEventListener('click', () => {
-            if (axesSelector.style.display === 'none') {
-                axesSelector.style.display = 'flex';
-            } else {
-                axesSelector.style.display = 'none';
-            }
+            axesSelector.style.display = axesSelector.style.display === 'none' ? 'flex' : 'none';
         });
 
         clearSelectionsBtn.addEventListener('click', () => {
@@ -422,11 +514,11 @@
                 displayDimensions = {};
                 
                 originalDimensions.forEach(dim => {
-                    displayDimensions[dim] = dim; // Standard navn
+                    displayDimensions[dim] = dim;
                 });
                 
                 globalData = rawData.map((d, i) => {
-                    let row = { _id: i }; // Tilføj unikt ID til rækken
+                    let row = { _id: i };
                     originalDimensions.forEach(dim => {
                         let val = d[dim].replace(',', '.');
                         row[dim] = parseFloat(val);
@@ -461,11 +553,9 @@
                 cb.addEventListener('change', (e) => {
                     if (e.target.checked) {
                         activeDimensions.push(dim);
-                        // Sorter så de bibeholder den oprindelige rækkefølge
                         activeDimensions.sort((a, b) => originalDimensions.indexOf(a) - originalDimensions.indexOf(b));
                     } else {
                         activeDimensions = activeDimensions.filter(d => d !== dim);
-                        // Fjern evt. brush filter på denne akse, da den skjules
                         if (currentSelections[dim]) {
                             delete currentSelections[dim];
                         }
@@ -481,14 +571,24 @@
 
         function populateColorAxisDropdown() {
             const currentVal = colorAxisSelect.value;
+            const currentSens = sensOutputSelect.value;
             colorAxisSelect.innerHTML = '<option value="">-- Ingen --</option>';
+            sensOutputSelect.innerHTML = '';
             originalDimensions.forEach(dim => {
                 const opt = document.createElement('option');
                 opt.value = dim;
                 opt.innerText = displayDimensions[dim];
                 colorAxisSelect.appendChild(opt);
+
+                const sOpt = document.createElement('option');
+                sOpt.value = dim;
+                sOpt.innerText = displayDimensions[dim];
+                sensOutputSelect.appendChild(sOpt);
             });
             colorAxisSelect.value = currentVal;
+            sensOutputSelect.value = originalDimensions.includes(currentSens)
+                ? currentSens
+                : originalDimensions[originalDimensions.length - 1];
         }
 
         let svgElement, fgPath, bgPath, theAxes;
@@ -496,7 +596,7 @@
         function updateDataView(activeData) {
             if (!theHistogramsGroup) return;
 
-            const binsNum = parseInt(binsNumInput.value) || 40;
+            const binsNum = parseInt(binsNumInput.value) || 35;
             const histColor = histColorInput.value;
             
             theHistogramsGroup.selectAll("*").remove();
@@ -511,7 +611,7 @@
                 
                 const barScale = d3.scaleLinear()
                     .domain([0, maxCount])
-                    .range([0, 50]); 
+                    .range([0, 36]); 
 
                 const g = theHistogramsGroup.filter(d => d === dim);
 
@@ -519,15 +619,255 @@
                     .data(bins)
                     .enter().append("rect")
                     .attr("class", "hist-bar")
-                    .attr("x", 1)
+                    .attr("x", 0.5)
                     .attr("y", d => yScales[dim](d.x1))
                     .attr("width", d => barScale(d.length))
                     .attr("height", d => Math.max(0, yScales[dim](d.x0) - yScales[dim](d.x1) - 1))
+                    .attr("rx", 1)
                     .style("fill", histColor)
-                    .style("opacity", 0.6);
+                    .style("opacity", 0.28);
             });
 
+            renderSensitivity(activeData);
             updateTable(activeData);
+        }
+
+        function computeSensitivity(activeData, outputDim) {
+            const inputs = activeDimensions.filter(d => d !== outputDim);
+            const n = activeData.length;
+            if (n < 2 || !outputDim) return [];
+
+            const yVals = activeData.map(d => d[outputDim]);
+            const meanY = d3.mean(yVals);
+            const stdY = d3.deviation(yVals) || 0;
+
+            const stats = inputs.map(dim => {
+                const xVals = activeData.map(d => d[dim]);
+                const meanX = d3.mean(xVals);
+                const stdX = d3.deviation(xVals) || 0;
+                let r = 0;
+                if (stdX > 0 && stdY > 0) {
+                    let cov = 0;
+                    for (let i = 0; i < n; i++) cov += (xVals[i] - meanX) * (yVals[i] - meanY);
+                    r = Math.max(-1, Math.min(1, (cov / (n - 1)) / (stdX * stdY)));
+                }
+                const sortedX = [...xVals].sort(d3.ascending);
+                const p10 = d3.quantileSorted(sortedX, 0.10) ?? 0;
+                const p90 = d3.quantileSorted(sortedX, 0.90) ?? 0;
+                const slope = stdX > 0 ? r * (stdY / stdX) : 0;
+                const deltaY = slope * (p90 - p10);
+                return { dim, label: displayDimensions[dim], r, absR: Math.abs(r), r2: r * r, deltaY, p10, p90 };
+            });
+
+            const sumAbsR = d3.sum(stats, d => d.absR) || 1;
+            stats.forEach(d => { d.relWeight = (d.absR / sumAbsR) * 100; });
+            return stats.sort((a, b) => b.absR - a.absR);
+        }
+
+        function fmtNum(v) {
+            const a = Math.abs(v);
+            if (a === 0) return "0,00";
+            if (a >= 10000 || a < 0.01) return v.toExponential(1).replace('.', ',');
+            return v.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderSensitivity(activeData) {
+            if (globalData.length === 0) return;
+            sensContainer.style.display = 'block';
+
+            const outputDim = sensOutputSelect.value;
+            const outputLabel = displayDimensions[outputDim] || outputDim;
+            const stats = computeSensitivity(activeData, outputDim);
+
+            const plotDiv = d3.select("#sens-plot-container");
+            plotDiv.selectAll("*").remove();
+            const tbody = document.getElementById('sensBody');
+            tbody.innerHTML = '';
+
+            if (stats.length === 0) {
+                plotDiv.append("div").style("padding", "20px").style("color", "#71717a")
+                    .text("Vælg mindst 2 aktive datapunkter og 2 akser for at beregne følsomhed.");
+                return;
+            }
+
+            // Minimalistisk arkitektonisk rapport-diagram
+            const rowH = 34;
+            const margin = { top: 72, right: 155, bottom: 38, left: 165 };
+            const width = 760;
+            const innerW = width - margin.left - margin.right;
+            const innerH = stats.length * rowH;
+            const height = innerH + margin.top + margin.bottom;
+
+            const posColor = "#2b4c6f";
+            const negColor = "#b45346";
+
+            const svg = plotDiv.append("svg")
+                .attr("id", "sens-svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .style("background-color", "#ffffff")
+                .style("font-family", "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif");
+
+            // Minimalistisk rapport-header
+            svg.append("text")
+                .attr("x", 24).attr("y", 28)
+                .style("font-size", "13px").style("font-weight", "600")
+                .style("letter-spacing", "0.06em").style("text-transform", "uppercase")
+                .style("fill", "#18181b")
+                .text(`Følsomhedsanalyse — ${outputLabel}`);
+
+            svg.append("text")
+                .attr("x", 24).attr("y", 46)
+                .style("font-size", "11px").style("fill", "#71717a")
+                .text(`Korrelation (r), relativ vægt og effekt (Δ P10→P90)  ·  n = ${activeData.length}`);
+
+            // Kolonne-overskrifter i højre side
+            svg.append("text")
+                .attr("x", width - 92).attr("y", 62)
+                .style("text-anchor", "end").style("font-size", "10px").style("font-weight", "600")
+                .style("letter-spacing", "0.05em").style("fill", "#71717a")
+                .text("VÆGT");
+
+            svg.append("text")
+                .attr("x", width - 24).attr("y", 62)
+                .style("text-anchor", "end").style("font-size", "10px").style("font-weight", "600")
+                .style("letter-spacing", "0.05em").style("fill", "#71717a")
+                .text("Δ P10→P90");
+
+            const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleLinear().domain([-1, 1]).range([0, innerW]);
+            const y = d3.scaleBand().domain(stats.map(d => d.dim)).range([0, innerH]).padding(0.45);
+
+            // Vandrette hairlines mellem rækker
+            stats.forEach((d, i) => {
+                g.append("line")
+                    .attr("x1", -margin.left + 24)
+                    .attr("x2", innerW + margin.right - 24)
+                    .attr("y1", i * rowH)
+                    .attr("y2", i * rowH)
+                    .style("stroke", "#f1f1f3")
+                    .style("stroke-width", 1);
+            });
+            g.append("line")
+                .attr("x1", -margin.left + 24)
+                .attr("x2", innerW + margin.right - 24)
+                .attr("y1", innerH)
+                .attr("y2", innerH)
+                .style("stroke", "#e4e4e7")
+                .style("stroke-width", 1);
+
+            // Lodrette skala-linjer (-1, -0.5, 0, 0.5, 1)
+            [-1, -0.5, 0, 0.5, 1].forEach(t => {
+                g.append("line")
+                    .attr("x1", x(t)).attr("x2", x(t))
+                    .attr("y1", 0).attr("y2", innerH)
+                    .style("stroke", t === 0 ? "#18181b" : "#e4e4e7")
+                    .style("stroke-width", t === 0 ? 1 : 0.75)
+                    .style("stroke-dasharray", t === 0 ? "none" : "2,3");
+            });
+
+            // Slanke arkitektoniske søjler
+            g.selectAll(".sens-bar")
+                .data(stats)
+                .enter().append("rect")
+                .attr("x", d => x(Math.min(0, d.r)))
+                .attr("y", d => y(d.dim))
+                .attr("width", d => Math.max(1.5, Math.abs(x(d.r) - x(0))))
+                .attr("height", y.bandwidth())
+                .attr("rx", 1.5)
+                .style("fill", d => d.r >= 0 ? posColor : negColor);
+
+            // r-værdi direkte ved spidsen af søjlen
+            g.selectAll(".r-tip")
+                .data(stats)
+                .enter().append("text")
+                .attr("x", d => d.r >= 0 ? x(d.r) + 6 : x(d.r) - 6)
+                .attr("y", d => y(d.dim) + y.bandwidth() / 2 + 3.5)
+                .style("text-anchor", d => d.r >= 0 ? "start" : "end")
+                .style("font-size", "10.5px")
+                .style("font-weight", "500")
+                .style("fill", "#52525b")
+                .style("paint-order", "stroke")
+                .style("stroke", "#ffffff")
+                .style("stroke-width", "3px")
+                .text(d => (d.r >= 0 ? "+" : "") + d.r.toFixed(2).replace('.', ','));
+
+            // Parameternavne til venstre
+            g.selectAll(".param-label")
+                .data(stats)
+                .enter().append("text")
+                .attr("x", -14)
+                .attr("y", d => y(d.dim) + y.bandwidth() / 2 + 4)
+                .style("text-anchor", "end")
+                .style("font-size", "12px")
+                .style("font-weight", "500")
+                .style("fill", "#18181b")
+                .text(d => d.label);
+
+            // Relativ vægt-kolonne
+            g.selectAll(".weight-label")
+                .data(stats)
+                .enter().append("text")
+                .attr("x", innerW + 63)
+                .attr("y", d => y(d.dim) + y.bandwidth() / 2 + 4)
+                .style("text-anchor", "end")
+                .style("font-size", "11.5px")
+                .style("font-weight", "600")
+                .style("fill", "#18181b")
+                .text(d => `${d.relWeight.toFixed(0)}%`);
+
+            // Delta P10->P90-kolonne
+            g.selectAll(".delta-label")
+                .data(stats)
+                .enter().append("text")
+                .attr("x", innerW + margin.right - 24)
+                .attr("y", d => y(d.dim) + y.bandwidth() / 2 + 4)
+                .style("text-anchor", "end")
+                .style("font-size", "11.5px")
+                .style("fill", d => d.deltaY >= 0 ? posColor : negColor)
+                .text(d => (d.deltaY >= 0 ? "+" : "") + fmtNum(d.deltaY));
+
+            // Minimalistisk bund-akse
+            const xAxis = d3.axisBottom(x).tickValues([-1, -0.5, 0, 0.5, 1]).tickSize(4).tickFormat(d => d.toLocaleString('da-DK'));
+            const axG = g.append("g")
+                .attr("transform", `translate(0,${innerH})`)
+                .call(xAxis);
+            axG.select(".domain").style("stroke", "#d4d4d8");
+            axG.selectAll("line").style("stroke", "#d4d4d8");
+            axG.selectAll("text").style("font-size", "10px").style("fill", "#71717a");
+
+            g.append("text")
+                .attr("x", 0).attr("y", innerH + 28)
+                .style("text-anchor", "start").style("font-size", "10px").style("fill", negColor)
+                .text("← Reducerer output (-r)");
+
+            g.append("text")
+                .attr("x", innerW).attr("y", innerH + 28)
+                .style("text-anchor", "end").style("font-size", "10px").style("fill", posColor)
+                .text("Øger output (+r) →");
+
+            // 2. Render rapport-tabel
+            stats.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'default';
+                const sign = d.r >= 0 ? "+" : "";
+                const dSign = d.deltaY >= 0 ? "+" : "";
+                tr.innerHTML = `
+                    <td style="text-align:left; font-weight:500;">${d.label}</td>
+                    <td>${sign}${d.r.toFixed(2).replace('.', ',')}</td>
+                    <td><strong>${d.relWeight.toFixed(1).replace('.', ',')}%</strong></td>
+                    <td>${(d.r2 * 100).toFixed(1).replace('.', ',')}%</td>
+                    <td>${dSign}${fmtNum(d.deltaY)}</td>
+                    <td style="text-align:center;">
+                        <span class="${d.r >= 0 ? 'badge-pos' : 'badge-neg'}">
+                            ${d.r >= 0 ? '+ Positiv' : '− Negativ'}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function renderPlot() {
@@ -539,7 +879,7 @@
             const width = parseInt(widthInput.value);
             const height = parseInt(heightInput.value);
             
-            const margin = {top: 60, right: 80, bottom: 30, left: 50};
+            const margin = {top: 56, right: 65, bottom: 28, left: 55};
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
 
@@ -548,22 +888,24 @@
                 .attr("height", height)
                 .attr("id", "main-svg")
                 .style("background-color", bgColorInput.value)
+                .style("font-family", "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif")
                 .append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            // Beregn Y-skalaer for ALLE dimensioner (selvom de er skjult, for at have dem klar)
             originalDimensions.forEach(d => {
                 yScales[d] = d3.scaleLinear()
                     .domain(d3.extent(globalData, p => p[d]))
+                    .nice(5)
                     .range([innerHeight, 0]);
             });
 
             const x = d3.scalePoint()
                 .range([0, innerWidth])
-                .padding(1)
+                .padding(0.5)
                 .domain(activeDimensions);
 
-            const path = d => d3.line()(activeDimensions.map(p => [x(p), yScales[p](d[p])]));
+            const lineGen = d3.line();
+            const path = d => lineGen(activeDimensions.map(p => [x(p), yScales[p](d[p])]));
 
             bgPath = svgElement.append("g")
                 .selectAll("path")
@@ -572,7 +914,8 @@
                 .attr("class", "bg-line")
                 .attr("d", path)
                 .style("fill", "none")
-                .style("shape-rendering", "crispEdges");
+                .style("stroke-linecap", "round")
+                .style("stroke-linejoin", "round");
 
             fgPath = svgElement.append("g")
                 .selectAll("path")
@@ -581,7 +924,9 @@
                 .attr("class", "fg-line")
                 .attr("d", path)
                 .style("fill", "none")
-                .style("transition", "stroke-width 0.2s, stroke-opacity 0.2s"); // Giver pæn animation når de vælges
+                .style("stroke-linecap", "round")
+                .style("stroke-linejoin", "round")
+                .style("transition", "stroke-width 0.15s, stroke-opacity 0.15s");
 
             theAxes = svgElement.selectAll(".axis")
                 .data(activeDimensions)
@@ -589,17 +934,22 @@
                 .attr("class", "axis")
                 .attr("transform", d => `translate(${x(d)},0)`);
 
+            theHistogramsGroup = theAxes.append("g").attr("class", "hist-group");
+
             theAxes.append("g")
-                .each(function(d) { d3.select(this).call(d3.axisLeft(yScales[d]).ticks(10)); });
+                .attr("class", "axis-ticks")
+                .each(function(d) {
+                    d3.select(this).call(d3.axisLeft(yScales[d]).ticks(7).tickSize(4));
+                });
                 
             theAxes.append("text")
                 .attr("class", "axis-label")
-                .attr("y", -20)
-                .style("font-size", "14px")
-                .style("font-weight", "bold")
+                .attr("y", -22)
+                .style("font-size", "11.5px")
+                .style("font-weight", "600")
+                .style("letter-spacing", "0.05em")
                 .style("text-anchor", "middle")
                 .style("cursor", "pointer")
-                .style("transition", "fill 0.2s")
                 .text(d => displayDimensions[d])
                 .on("mouseover", function() { d3.select(this).style("fill", lineColorInput.value); })
                 .on("mouseout", function() { d3.select(this).style("fill", textColorInput.value); })
@@ -614,7 +964,7 @@
                         .attr("x", -75) 
                         .attr("y", -38)
                         .attr("width", 150)
-                        .attr("height", 30);
+                        .attr("height", 28);
                         
                     const input = fo.append("xhtml:input")
                         .attr("type", "text")
@@ -622,12 +972,12 @@
                         .style("width", "100%")
                         .style("box-sizing", "border-box")
                         .style("text-align", "center")
-                        .style("font-weight", "bold")
-                        .style("font-size", "14px")
-                        .style("border", `2px solid ${lineColorInput.value}`)
-                        .style("border-radius", "4px")
+                        .style("font-weight", "600")
+                        .style("font-size", "12px")
+                        .style("border", `1.5px solid ${lineColorInput.value}`)
+                        .style("border-radius", "3px")
                         .style("outline", "none")
-                        .style("color", "#333");
+                        .style("color", "#18181b");
 
                     input.node().focus();
                     input.node().select();
@@ -637,9 +987,11 @@
                         displayDimensions[d] = newText;
                         textElement.text(newText).style("visibility", "visible").style("fill", textColorInput.value);
                         fo.remove();
-                        populateColorAxisDropdown(); // Opdater dropdown navne
-                        populateAxesSelector(); // Opdater navne i "Vælg Akser" panelet
-                        updateTable(globalData.filter(isDataActive));
+                        populateColorAxisDropdown();
+                        populateAxesSelector();
+                        const activeData = globalData.filter(isDataActive);
+                        renderSensitivity(activeData);
+                        updateTable(activeData);
                     };
 
                     input.on("blur", finishEdit);
@@ -655,8 +1007,6 @@
                 .append("title")
                 .text("Klik for at redigere navn");
 
-            theHistogramsGroup = theAxes.append("g").attr("class", "hist-group");
-
             const activeDataInit = globalData.filter(isDataActive);
             
             fgPath.style("display", function(d) {
@@ -670,7 +1020,7 @@
                 .attr("class", "brush")
                 .each(function(d) {
                     const theBrush = d3.brushY()
-                        .extent([[-15, 0], [15, innerHeight]])
+                        .extent([[-14, 0], [14, innerHeight]])
                         .on("brush end", function(event) {
                             if (event.selection) {
                                 currentSelections[d] = event.selection.map(yScales[d].invert, yScales[d]);
@@ -713,21 +1063,21 @@
             if(!svgElement) return;
             
             const textColor = textColorInput.value;
+            const bgColor = bgColorInput.value;
             const defaultLineColor = lineColorInput.value;
             const cAxis = colorAxisSelect.value;
             
-            d3.select("#main-svg").style("background-color", bgColorInput.value);
+            d3.select("#main-svg").style("background-color", bgColor);
             
             bgPath
                 .style("stroke", textColor)
                 .style("stroke-opacity", inactiveOpacityInput.value)
                 .style("stroke-width", inactiveLineWidthInput.value + "px");
                 
-            // Opsæt farveskala hvis en akse er valgt 
             let colorScale = null;
             if (cAxis && yScales[cAxis]) {
                 const domain = d3.extent(globalData, d => d[cAxis]);
-                const interpolatorName = colorScaleSelect.value || "interpolateTurbo";
+                const interpolatorName = colorScaleSelect.value || "interpolateViridis";
                 colorScale = d3.scaleSequential(d3[interpolatorName]).domain(domain);
             }
 
@@ -737,24 +1087,30 @@
                     return defaultLineColor;
                 })
                 .style("stroke-opacity", d => {
-                    if (selectedDataIds.size === 0) return 0.4; // Standard opacitet
-                    return selectedDataIds.has(d._id) ? 1.0 : 0.05; // Fade ikke-valgte meget ned
+                    if (selectedDataIds.size === 0) return 0.42;
+                    return selectedDataIds.has(d._id) ? 0.95 : 0.04;
                 })
                 .style("stroke-width", d => {
                     let baseWidth = parseFloat(activeLineWidthInput.value);
                     if (selectedDataIds.size > 0 && selectedDataIds.has(d._id)) {
-                        return (baseWidth + 1.5) + "px"; // Gør valgte lidt tykkere
+                        return (baseWidth + 1.4) + "px";
                     }
                     return baseWidth + "px";
                 });
                 
-            theAxes.selectAll("path, line").style("stroke", textColor);
+            theAxes.selectAll(".domain").style("stroke", textColor).style("stroke-opacity", 0.35).style("stroke-width", "1px");
+            theAxes.selectAll(".tick line").style("stroke", textColor).style("stroke-opacity", 0.35);
             theAxes.selectAll("text.axis-label").style("fill", textColor);
-            theAxes.selectAll(".tick text").style("fill", textColor);
+            theAxes.selectAll(".tick text")
+                .style("fill", textColor)
+                .style("font-size", "10.5px")
+                .style("paint-order", "stroke")
+                .style("stroke", bgColor)
+                .style("stroke-width", "3px")
+                .style("stroke-linejoin", "round");
             
             svgElement.selectAll(".hist-bar").style("fill", histColorInput.value);
             
-            // Toggle ryd-markeringer knap
             clearSelectionsBtn.style.display = selectedDataIds.size > 0 ? 'inline-block' : 'none';
         }
 
@@ -772,7 +1128,7 @@
             }
 
             const renderLimit = Math.min(activeData.length, 500);
-            tableInfo.innerText = `Filtrerede data: Viser ${renderLimit} ud af ${activeData.length} aktive paths.`;
+            tableInfo.innerText = `Filtrerede data — Viser ${renderLimit} af ${activeData.length} aktive løsninger`;
 
             const trHead = document.createElement('tr');
             activeDimensions.forEach(dim => {
@@ -790,7 +1146,6 @@
                     tr.classList.add('selected-row');
                 }
 
-                // Klik på række for at markere den
                 tr.onclick = function() {
                     if (selectedDataIds.has(rowData._id)) {
                         selectedDataIds.delete(rowData._id);
@@ -811,47 +1166,72 @@
             }
         }
 
-        function exportToJPG() {
-            const svgNode = document.querySelector("#main-svg");
-            if (!svgNode) {
-                alert("Der er ingen graf at eksportere. Indlæs venligst en fil først.");
-                return;
-            }
+        function svgToCanvas(selector, bg, scale = 2) {
+            return new Promise((resolve, reject) => {
+                const svgNode = document.querySelector(selector);
+                if (!svgNode) return reject("Der er ingen graf at eksportere. Indlæs venligst en fil først.");
 
-            const clonedSvg = svgNode.cloneNode(true);
-            clonedSvg.style.backgroundColor = bgColorInput.value;
+                const clonedSvg = svgNode.cloneNode(true);
+                clonedSvg.style.backgroundColor = bg;
+                const svgString = new XMLSerializer().serializeToString(clonedSvg);
+                const width = parseInt(svgNode.getAttribute("width"));
+                const height = parseInt(svgNode.getAttribute("height"));
 
-            const serializer = new XMLSerializer();
-            const svgString = serializer.serializeToString(clonedSvg);
-            
-            const width = parseInt(svgNode.getAttribute("width"));
-            const height = parseInt(svgNode.getAttribute("height"));
+                const canvas = document.createElement("canvas");
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+                const ctx = canvas.getContext("2d");
+                ctx.scale(scale, scale);
+                ctx.fillStyle = bg;
+                ctx.fillRect(0, 0, width, height);
 
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
+                const img = new Image();
+                const url = URL.createObjectURL(new Blob([svgString], {type: "image/svg+xml;charset=utf-8"}));
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas);
+                };
+                img.src = url;
+            });
+        }
 
-            ctx.fillStyle = bgColorInput.value;
-            ctx.fillRect(0, 0, width, height);
-
-            const img = new Image();
-            const svgBlob = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
-            const url = URL.createObjectURL(svgBlob);
-
-            img.onload = function() {
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
-                
-                const imgURI = canvas.toDataURL("image/jpeg", 1.0);
+        function exportSvgToImage(selector, filename, bg) {
+            svgToCanvas(selector, bg, 2).then(canvas => {
                 const link = document.createElement("a");
-                link.download = "PCP_Graf.jpg";
-                link.href = imgURI;
+                link.download = filename;
+                link.href = canvas.toDataURL("image/jpeg", 0.98);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-            };
-            img.src = url;
+            }).catch(alert);
+        }
+
+        function copySvgToClipboard(selector, btn, bg = "#ffffff") {
+            svgToCanvas(selector, bg, 2).then(canvas => {
+                canvas.toBlob(async blob => {
+                    try {
+                        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                        const old = btn.innerText;
+                        btn.innerText = "✓ Kopieret!";
+                        setTimeout(() => btn.innerText = old, 1800);
+                    } catch (e) {
+                        exportSvgToImage(selector, "Graf.jpg", bg);
+                    }
+                }, "image/png");
+            }).catch(alert);
+        }
+
+        async function copySensTable(btn) {
+            const table = document.getElementById('sensTable');
+            if (!table) return;
+            const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
+                Array.from(tr.querySelectorAll('th,td')).map(c => c.innerText.trim()).join('\t')
+            ).join('\n');
+            await navigator.clipboard.writeText(rows);
+            const old = btn.innerText;
+            btn.innerText = "✓ Tabel kopieret!";
+            setTimeout(() => btn.innerText = old, 1800);
         }
     </script>
 </body>
